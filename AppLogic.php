@@ -142,28 +142,39 @@ class AppLogic {
              throw new Exception("Failed to parse AI response. Raw: " . substr($content, 0, 100) . "...");
         }
         
-        // Auto-generate icon logic if AI didn't provide good one
+        // Auto-generate icon logic if AI didn't provide good one or URL provided directly
         if (empty($json['url']) && filter_var($query, FILTER_VALIDATE_URL)) {
             $json['url'] = $query;
         }
 
         // Fix Icon Logic
-        // 1. Ensure URL has scheme for parsing
         $targetUrl = $json['url'] ?? $query;
         if (!preg_match("~^https?://~i", $targetUrl)) {
             $targetUrl = "https://" . $targetUrl;
         }
 
-        // 2. Always try to get domain for favicon
-        $domain = parse_url($targetUrl, PHP_URL_HOST);
+        // 1. Try to get metadata from the page directly (Best quality)
+        $metaIcon = $this->fetchPageIcon($targetUrl);
+
+        // 2. Decide Icon
+        // Priority: AI Icon (if looks valid url) > Metadata Icon > Google Favicon > Default
+        $aiIcon = $json['icon'] ?? '';
         
-        // 3. Decide Icon: If AI didn't give a valid URL, or gave a generic one, OR if we prefer consistent favicons:
-        // Let's prioritize the Google Favicon service as it's more reliable than AI guessing image URLs
-        if ($domain) {
-             $json['icon'] = "https://www.google.com/s2/favicons?domain={$domain}&sz=64";
+        // Simple check if AI icon is valid URL
+        $aiIconValid = !empty($aiIcon) && filter_var($aiIcon, FILTER_VALIDATE_URL);
+
+        if ($aiIconValid) {
+            // Use AI icon
+        } elseif ($metaIcon) {
+            $json['icon'] = $metaIcon;
         } else {
-             // Fallback if no domain could be parsed
-             $json['icon'] = "https://img.icons8.com/dusk/64/000000/console.png"; 
+             // Fallback to Google Favicon
+             $domain = parse_url($targetUrl, PHP_URL_HOST);
+             if ($domain) {
+                  $json['icon'] = "https://www.google.com/s2/favicons?domain={$domain}&sz=64";
+             } else {
+                  $json['icon'] = "https://img.icons8.com/dusk/64/000000/console.png"; 
+             }
         }
         
         // Ensure the data has the full URL
@@ -177,6 +188,58 @@ class AppLogic {
         }
 
         return $json;
+    }
+
+    private function fetchPageIcon($url) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $html = curl_exec($ch);
+        curl_close($ch);
+
+        if (!$html) return null;
+
+        $doc = new DOMDocument();
+        @$doc->loadHTML($html);
+        $xpath = new DOMXPath($doc);
+
+        // 1. Check og:image
+        $ogImage = $xpath->query('//meta[@property="og:image"]/@content');
+        if ($ogImage->length > 0) {
+            return $this->resolveUrl($url, $ogImage->item(0)->nodeValue);
+        }
+
+        // 2. Check twitter:image
+        $twitterImage = $xpath->query('//meta[@name="twitter:image"]/@content');
+        if ($twitterImage->length > 0) {
+            return $this->resolveUrl($url, $twitterImage->item(0)->nodeValue);
+        }
+
+        // 3. Check link rel icon
+        $icons = $xpath->query('//link[@rel="icon" or @rel="shortcut icon" or @rel="apple-touch-icon"]/@href');
+        if ($icons->length > 0) {
+            return $this->resolveUrl($url, $icons->item(0)->nodeValue);
+        }
+
+        return null;
+    }
+
+    private function resolveUrl($baseUrl, $relativeUrl) {
+        if (filter_var($relativeUrl, FILTER_VALIDATE_URL)) {
+            return $relativeUrl;
+        }
+        
+        $parts = parse_url($baseUrl);
+        $baseRoot = $parts['scheme'] . '://' . $parts['host'];
+        
+        if (strpos($relativeUrl, '/') === 0) {
+            return $baseRoot . $relativeUrl;
+        }
+        
+        return $baseRoot . '/' . $relativeUrl;
     }
 
     // --- Category Management ---

@@ -1,10 +1,17 @@
+<?php
+require_once 'AppLogic.php';
+$app = new AppLogic();
+$settings = $app->getSettings();
+$appTitle = $settings['app_title'] ?? 'Kişisel Araç Kütüphanem';
+$appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/console.png';
+?>
 <!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title x-text="settings.app_title || 'Kişisel Araç Kütüphanem'">Kişisel Araç Kütüphanem</title>
-    <link rel="icon" :href="settings.app_icon || 'https://img.icons8.com/dusk/64/000000/console.png'" type="image/x-icon" />
+    <title><?php echo htmlspecialchars($appTitle); ?></title>
+    <link rel="icon" href="<?php echo htmlspecialchars($appIcon); ?>" type="image/x-icon" />
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -116,17 +123,17 @@
                     </div>
                 </template>
             </div>
-
-             <!-- Settings -->
-            <div>
-                <a href="#" @click.prevent="switchTab('settings')" 
-                   :class="{'bg-dark-card text-white': activeTab === 'settings', 'text-gray-400 hover:text-gray-200': activeTab !== 'settings'}"
-                   class="flex items-center px-3 py-2 rounded-lg transition-colors group">
-                    <span class="w-8 flex items-center justify-center"><i class="fas fa-cog group-hover:text-yellow-500 transition-colors"></i></span>
-                    <span class="font-medium">Ayarlar</span>
-                </a>
-            </div>
         </nav>
+
+        <!-- Settings (Bottom) -->
+        <div class="p-4 border-t border-dark-border/50">
+            <a href="#" @click.prevent="switchTab('settings')" 
+               :class="{'bg-dark-card text-white': activeTab === 'settings', 'text-gray-400 hover:text-gray-200': activeTab !== 'settings'}"
+               class="flex items-center px-3 py-3 rounded-lg transition-colors group">
+                <span class="w-8 flex items-center justify-center"><i class="fas fa-cog group-hover:text-yellow-500 transition-colors"></i></span>
+                <span class="font-medium">Ayarlar</span>
+            </a>
+        </div>
     </aside>
 
     <!-- Main Section -->
@@ -284,6 +291,9 @@
                                                     <option :value="cat.name" x-text="cat.name"></option>
                                                 </template>
                                             </select>
+                                            <button type="button" @click="promptAddCategory" class="px-3 bg-dark-sidebar border border-dark-border rounded-lg text-gray-400 hover:text-white hover:border-gray-500 transition" title="Yeni Kategori Ekle">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
                                         </div>
 
                                         <!-- Sub Category -->
@@ -294,6 +304,9 @@
                                                     <option :value="sub.name" x-text="sub.name"></option>
                                                 </template>
                                             </select>
+                                            <button type="button" @click="promptAddSubCategory(categories.find(c => c.name === newTool.category))" :disabled="!newTool.category" class="px-3 bg-dark-sidebar border border-dark-border rounded-lg text-gray-400 hover:text-white hover:border-gray-500 transition disabled:opacity-50" title="Yeni Alt Kategori Ekle">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -740,12 +753,18 @@
                     const name = prompt("Yeni Ana Kategori Adı:");
                     if(name) {
                         // We add correctly formatted object
-                        this.categories.push({
+                        const newCat = {
                             id: 'cat_' + Date.now(),
                             name: name,
                             subcategories: []
-                        });
+                        };
+                        this.categories.push(newCat);
                         await this.saveCategories();
+                        
+                        // If we are in 'add' tab, auto-select this new category
+                        if (this.activeTab === 'add') {
+                            this.newTool.category = name;
+                        }
                     }
                 },
 
@@ -757,6 +776,11 @@
                             name: name
                         });
                         await this.saveCategories();
+
+                        // If we are in 'add' tab, auto-select this new subcategory
+                        if (this.activeTab === 'add') {
+                            this.newTool.subcategory = name;
+                        }
                      }
                 },
                 
