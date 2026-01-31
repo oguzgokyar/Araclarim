@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kişisel Araç Kütüphanem</title>
+    <title x-text="settings.app_title || 'Kişisel Araç Kütüphanem'">Kişisel Araç Kütüphanem</title>
+    <link rel="icon" :href="settings.app_icon || 'https://img.icons8.com/dusk/64/000000/console.png'" type="image/x-icon" />
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -170,12 +171,6 @@
             <!-- Dashboard (Cards) -->
             <div x-show="activeTab === 'dashboard'" x-transition.opacity.duration.300ms>
                 
-                 <!-- Hero / Welcome (Optional, only on 'All Tools') -->
-                 <div x-show="!currentCategory && !searchQuery" class="mb-8">
-                    <h1 class="text-3xl font-bold text-white mb-2">Hoşgeldin 👋</h1>
-                    <p class="text-gray-400">Tüm geliştirme araçların ve kaynakların tek bir yerde.</p>
-                 </div>
-
                 <!-- Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <template x-for="tool in filteredTools" :key="tool.id">
@@ -383,8 +378,20 @@
                             </div>
 
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Logo URL</label>
+                                <label class="block text-sm text-gray-400 mb-1">Logo URL (Başlık Yanı)</label>
                                 <input type="text" x-model="settings.logo_url" class="w-full bg-dark-main border border-dark-border rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Uygulama Simgesi URL (Favicon)</label>
+                                <div class="flex gap-2">
+                                     <input type="text" x-model="settings.app_icon" placeholder="https://..." class="flex-1 bg-dark-main border border-dark-border rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+                                     <div class="w-10 h-10 bg-dark-main rounded-lg border border-dark-border flex items-center justify-center">
+                                         <img :src="settings.app_icon" x-show="settings.app_icon" class="w-6 h-6 object-contain" onerror="this.style.display='none'">
+                                         <i class="fas fa-image text-gray-600" x-show="!settings.app_icon"></i>
+                                     </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Tarayıcı sekmesinde görünecek simge.</p>
                             </div>
 
                             <div>
