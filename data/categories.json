@@ -1,0 +1,16 @@
+[
+    {
+        "id": "cat_697e018aa83e8",
+        "name": "SEO",
+        "subcategories": [
+            {
+                "id": "sub_697e0197ceeb0",
+                "name": "Kelime Bulma"
+            },
+            {
+                "id": "sub_697e0648222a1",
+                "name": "Lokal Arama"
+            }
+        ]
+    }
+]

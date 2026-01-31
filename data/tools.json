@@ -1,0 +1,62 @@
+[
+    {
+        "id": "697e06548d19f",
+        "title": "isearchfrom.com",
+        "description": "Belirli web siteleri üzerinden hızlı ve özel aramalar yapmanızı sağlayan araç.",
+        "url": "https:\/\/www.isearchfrom.com\/",
+        "icon": "https:\/\/www.google.com\/s2\/favicons?domain=www.isearchfrom.com&sz=64",
+        "category": "SEO",
+        "subcategory": "Lokal Arama",
+        "tags": [
+            "Arama Aracı",
+            "Web Araçları"
+        ],
+        "clicks": 1,
+        "rating": 4
+    },
+    {
+        "id": "697e02debef5d",
+        "title": "Ahrefs Keyword Generator",
+        "description": "SEO için anahtar kelime fikirleri üreten ve arama hacmini gösteren bir araç.",
+        "url": "https:\/\/ahrefs.com\/tr\/keyword-generator",
+        "icon": "https:\/\/www.google.com\/s2\/favicons?domain=ahrefs.com&sz=64",
+        "category": "SEO",
+        "subcategory": "Kelime Bulma",
+        "tags": [
+            "Anahtar Kelime",
+            "SEO"
+        ],
+        "clicks": 3,
+        "rating": 4.8
+    },
+    {
+        "id": "697e0299631e1",
+        "title": "Semust",
+        "description": "Kapsamlı SEO araçları: site analizi, anahtar kelime, rakip araştırması ve geri bağlantı kontrolü.",
+        "url": "https:\/\/semust.com",
+        "icon": "https:\/\/www.google.com\/s2\/favicons?domain=semust.com&sz=64",
+        "category": "SEO",
+        "subcategory": "",
+        "tags": [
+            "SEO Analizi",
+            "Anahtar Kelime"
+        ],
+        "clicks": 1,
+        "rating": 4.7
+    },
+    {
+        "id": "697e01b69dbf7",
+        "title": "Keyword Tool",
+        "description": "Google, YouTube, Amazon ve diğer platformlar için anahtar kelime fikirleri bulmaya yarar.",
+        "url": "http:\/\/keywordtool.io\/",
+        "icon": "https:\/\/www.google.com\/s2\/favicons?domain=keywordtool.io&sz=64",
+        "category": "SEO",
+        "subcategory": "Kelime Bulma",
+        "tags": [
+            "Anahtar Kelime",
+            "Pazarlama"
+        ],
+        "clicks": 0,
+        "rating": 4.7
+    }
+]

@@ -1,0 +1,5 @@
+data/settings.json
+update_temp.zip
+update_temp_extract/
+*.tmp
+.DS_Store
