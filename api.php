@@ -71,7 +71,9 @@ try {
         case 'analyze_url':
             if ($method !== 'POST') throw new Exception("Method not allowed");
             if (!isset($input['query'])) throw new Exception("Query required");
-            echo json_encode($app->analyzeWithAI($input['query']));
+            if (!isset($input['query'])) throw new Exception("Query required");
+            $type = $input['type'] ?? 'app';
+            echo json_encode($app->analyzeWithAI($input['query'], $type));
             break;
 
         case 'update_tool':

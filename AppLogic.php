@@ -63,9 +63,9 @@ class AppLogic {
         return ['status' => 'success'];
     }
 
-    public function analyzeWithAI($query) {
+    public function analyzeWithAI($query, $type = 'app') {
         $settings = $this->getSettings();
-        $apiKey = $settings['openai_api_key'] ?? ''; // We will keep the key name in JSON compatible, but in UI we call it Gemini Key
+        $apiKey = $settings['openai_api_key'] ?? ''; 
 
         if (empty($apiKey)) {
             throw new Exception("API Key is missing in settings.");
@@ -74,21 +74,68 @@ class AppLogic {
         // Gemini API Endpoint
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
 
-        // Prompt optimization
-        $prompt = "Sen bir teknoloji küratörüsün. Verilen şu aracı analiz et: '$query'. 
-        Eğer kullanıcı sadece isim verdiyse (örneğin 'Vite') bunun resmi web sitesini bul.
+        // Prompt optimization based on Type
+        $basePrompt = "Sen bir teknoloji küratörüsün. Verilen şu kaynağı analiz et: '$query'. Tip: '$type'.";
         
-        Bana şu JSON formatında yanıt ver:
-        {
-            \"title\": \"Uygulama Adı (Orjinal Yazılışı)\",
-            \"description\": \"Ne işe yaradığını NET anlatan açıklama (Süslü kelimeler YOK, Max 90 karakter)\",
-            \"url\": \"Resmi Web Sitesi URL'i (Örn: https://vitejs.dev)\",
-            \"icon\": \"Logo URL'i (Tercihen şeffaf PNG veya SVG, yoksa favicon URL'i)\",
-            \"category\": \"En uygun kategori (TÜRKÇE: Geliştirme, Tasarım, Üretkenlik, Öğrenme, Yapay Zeka vb.)\",
-            \"suggested_tags\": [\"Etiket1\", \"Etiket2\"], 
-            \"rating_prediction\": 4.8
+        if ($type === 'video') {
+             $prompt = "$basePrompt
+             Bu bir YouTube videosu veya benzeri bir video içeriği.
+             Resmi başlığını, kanal adını/yazarını, süresini ve ne hakkında olduğunu bul.
+             
+             Bana şu JSON formatında yanıt ver:
+             {
+                 \"title\": \"Video Başlığı\",
+                 \"description\": \"Videonun içeriğini NET anlatan açıklama (Max 120 karakter)\",
+                 \"url\": \"Video Linki\",
+                 \"icon\": \"Thumbnail URL (Max resolution)\",
+                 \"category\": \"En uygun kategori (TÜRKÇE: Geliştirme, Eğitim, Teknoloji, İnceleme vb.)\",
+                 \"suggested_tags\": [\"Etiket1\", \"Etiket2\"],
+                 \"rating_prediction\": 4.8,
+                 \"meta\": {
+                    \"author\": \"Kanal Adı / Yazar\",
+                    \"duration\": \"Video Süresi (Örn: 10:30)\",
+                    \"published_at\": \"Yayınlanma Tarihi (YYYY-MM-DD)\"
+                 }
+             }";
+        } elseif ($type === 'article') {
+             $prompt = "$basePrompt
+             Bu bir Blog yazısı, Makale veya Dokümantasyon sayfası.
+             Başlığını, yazarını, tahmini okuma süresini ve özetini bul.
+             
+             Bana şu JSON formatında yanıt ver:
+             {
+                 \"title\": \"Makale Başlığı\",
+                 \"description\": \"Makalenin özetini NET anlatan açıklama (Max 120 karakter)\",
+                 \"url\": \"Makale Linki\",
+                 \"icon\": \"Site Faviconu veya Varsa Makale Kapak Resmi\",
+                 \"category\": \"En uygun kategori (TÜRKÇE: Geliştirme, Haber, Rehber, İpucu vb.)\",
+                 \"suggested_tags\": [\"Etiket1\", \"Etiket2\"],
+                 \"rating_prediction\": 4.5,
+                 \"meta\": {
+                    \"author\": \"Yazar Adı\",
+                    \"duration\": \"Okuma Süresi (Örn: 5 dk)\",
+                    \"published_at\": \"Yayınlanma Tarihi (YYYY-MM-DD)\"
+                 }
+             }";
+        } else {
+            // Default APP prompt
+            $prompt = "$basePrompt
+            Eğer kullanıcı sadece isim verdiyse resmi web sitesini bul.
+            
+            Bana şu JSON formatında yanıt ver:
+            {
+                \"title\": \"Uygulama Adı (Orjinal Yazılışı)\",
+                \"description\": \"Ne işe yaradığını NET anlatan açıklama (Süslü kelimeler YOK, Max 90 karakter)\",
+                \"url\": \"Resmi Web Sitesi URL'i (Örn: https://vitejs.dev)\",
+                \"icon\": \"Logo URL'i (Tercihen şeffaf PNG veya SVG, yoksa favicon URL'i)\",
+                \"category\": \"En uygun kategori (TÜRKÇE: Geliştirme, Tasarım, Üretkenlik, Öğrenme, Yapay Zeka vb.)\",
+                \"suggested_tags\": [\"Etiket1\", \"Etiket2\"], 
+                \"rating_prediction\": 4.8,
+                \"meta\": {}
+            }";
         }
         
+        $prompt .= "
         KURALLAR:
         1. 'suggested_tags' dizisi EN FAZLA 2 eleman içermeli. Hepsi TÜRKÇE olmalı (Örn: 'Arayüz', 'Derleme Aracı').
         2. 'category' alanı kesinlikle TÜRKÇE olmalı.
@@ -319,9 +366,11 @@ class AppLogic {
         $newTool = [
             'id' => uniqid(),
             'title' => $data['title'] ?? 'Untitled',
+            'type' => $data['type'] ?? 'app',
             'description' => $data['description'] ?? '',
             'url' => $data['url'] ?? '#',
             'icon' => $data['icon'] ?? '',
+            'meta' => $data['meta'] ?? [],
             'category' => $data['category'] ?? 'Uncategorized',     // Main Category Name
             'subcategory' => $data['subcategory'] ?? '',            // Sub Category Name
             'tags' => $data['tags'] ?? [],
@@ -340,9 +389,14 @@ class AppLogic {
         foreach ($tools as &$tool) {
             if ($tool['id'] === $id) {
                 $tool['title'] = $data['title'] ?? $tool['title'];
+                $tool['type'] = $data['type'] ?? ($tool['type'] ?? 'app');
                 $tool['description'] = $data['description'] ?? $tool['description'];
                 $tool['url'] = $data['url'] ?? $tool['url'];
                 $tool['icon'] = $data['icon'] ?? $tool['icon'];
+                // Update meta if provided, merge with existing
+                if (isset($data['meta'])) {
+                    $tool['meta'] = array_merge($tool['meta'] ?? [], $data['meta']);
+                }
                 // Only update category fields if provided
                 if(isset($data['category'])) $tool['category'] = $data['category'];
                 if(isset($data['subcategory'])) $tool['subcategory'] = $data['subcategory'];

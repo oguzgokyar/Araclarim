@@ -202,8 +202,12 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                             <!-- Left Column: Icon & Stats -->
                             <div class="w-32 bg-dark-main/30 flex flex-col items-center justify-center p-4 border-r border-dark-border flex-shrink-0 text-center">
                                 <!-- Big Circle Icon -->
-                                <div class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden mb-3 shadow-lg shadow-black/20 p-2">
+                                <div class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden mb-3 shadow-lg shadow-black/20 p-2 relative">
                                      <img :src="tool.icon" @error="$el.src = 'https://img.icons8.com/color/48/000000/image.png'" class="w-full h-full object-contain">
+                                     <!-- Video Play Overlay -->
+                                     <div x-show="tool.type === 'video'" class="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                                         <i class="fas fa-play text-white text-2xl drop-shadow-md"></i>
+                                     </div>
                                 </div>
                                 <!-- Stats Text -->
                                 <div class="text-xs font-semibold text-gray-500 mt-auto">
@@ -223,7 +227,15 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                                 <a :href="tool.url" target="_blank" @click="incrementClick(tool.id)" class="hover:text-accent-blue transition-colors">
                                     <h3 class="font-bold text-white text-lg uppercase tracking-wide leading-tight mb-1" x-text="tool.title"></h3>
                                 </a>
-                                <p class="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-3" x-text="tool.category"></p>
+                                <p class="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2" x-text="tool.category"></p>
+                                
+                                <template x-if="tool.meta && tool.meta.duration">
+                                     <div class="text-xs text-gray-400 mb-2 flex items-center gap-2">
+                                        <i class="far fa-clock"></i> <span x-text="tool.meta.duration"></span> 
+                                        <span x-show="tool.meta.author" class="text-gray-600">|</span> 
+                                        <span x-text="tool.meta.author"></span>
+                                     </div>
+                                </template>
                                 
                                 <p class="text-gray-400 text-sm leading-relaxed mb-4 line-clamp-3 text-sm" x-text="tool.description"></p>
 
@@ -253,8 +265,38 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                         <p class="text-gray-400 text-sm mt-1">AI yardımıyla koleksiyonunuza yeni bir parça ekleyin.</p>
                     </div>
 
+                    <!-- Type Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Kaynak Tipi</label>
+                        <div class="flex gap-4 mb-6">
+                            <button type="button" @click="newTool.type = 'app'" 
+                                :class="{'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-500/50': newTool.type === 'app', 'bg-dark-main text-gray-400 border-dark-border hover:border-gray-500': newTool.type !== 'app'}"
+                                class="flex-1 py-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all">
+                                <i class="fas fa-cube text-lg"></i>
+                                <span class="text-xs font-medium">Uygulama</span>
+                            </button>
+                            <button type="button" @click="newTool.type = 'video'" 
+                                :class="{'bg-red-600 text-white border-red-500 ring-2 ring-red-500/50': newTool.type === 'video', 'bg-dark-main text-gray-400 border-dark-border hover:border-gray-500': newTool.type !== 'video'}"
+                                class="flex-1 py-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all">
+                                <i class="fab fa-youtube text-lg"></i>
+                                <span class="text-xs font-medium">Video</span>
+                            </button>
+                            <button type="button" @click="newTool.type = 'article'" 
+                                :class="{'bg-green-600 text-white border-green-500 ring-2 ring-green-500/50': newTool.type === 'article', 'bg-dark-main text-gray-400 border-dark-border hover:border-gray-500': newTool.type !== 'article'}"
+                                class="flex-1 py-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all">
+                                <i class="fas fa-file-alt text-lg"></i>
+                                <span class="text-xs font-medium">Makale</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- AI Input -->
-                    <div class="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-xl p-6 mb-8 relative overflow-hidden">
+                    <div class="bg-gradient-to-r border rounded-xl p-6 mb-8 relative overflow-hidden"
+                         :class="{
+                            'from-blue-900/20 to-purple-900/20 border-blue-500/30': newTool.type === 'app',
+                            'from-red-900/20 to-orange-900/20 border-red-500/30': newTool.type === 'video',
+                            'from-green-900/20 to-teal-900/20 border-green-500/30': newTool.type === 'article'
+                         }">
                         <div class="relative z-10">
                             <label class="block text-sm font-medium text-blue-200 mb-2">Hızlı Ekleme (AI)</label>
                             <div class="flex gap-3">
@@ -550,7 +592,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                 aiError: '',
                 tempTags: '',
                 newTool: {
-                    title: '', description: '', url: '', category: 'Geliştirme', subcategory: '', tags: [], icon: '', rating: 4.8
+                    title: '', type: 'app', meta: {}, description: '', url: '', category: 'Geliştirme', subcategory: '', tags: [], icon: '', rating: 4.8
                 },
                 
                 settingsMessage: '',
@@ -654,7 +696,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                         const res = await fetch('api.php?action=analyze_url', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ query: this.aiQuery })
+                            body: JSON.stringify({ query: this.aiQuery, type: this.newTool.type })
                         });
                         
                         const data = await res.json();
