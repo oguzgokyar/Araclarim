@@ -77,14 +77,31 @@ class AppLogic {
         // Prompt optimization based on Type
         $basePrompt = "Sen bir teknoloji küratörüsün. Verilen şu kaynağı analiz et: '$query'. Tip: '$type'.";
         
+        // Scraped context for Video/Article
+        $scrapedData = [];
+        $scrapedContext = "";
+        
+        if (($type === 'video' || $type === 'article') && filter_var($query, FILTER_VALIDATE_URL)) {
+             $scrapedData = $this->fetchPageContent($query);
+             if ($scrapedData['title']) {
+                 $scrapedContext = "
+                 SAYFA İÇERİĞİ (BUNU KULLAN):
+                 Başlık: {$scrapedData['title']}
+                 Açıklama: {$scrapedData['description']}
+                 İçerik Özeti: {$scrapedData['body']}
+                 ";
+             }
+        }
+
         if ($type === 'video') {
              $prompt = "$basePrompt
+             $scrapedContext
              Bu bir YouTube videosu veya benzeri bir video içeriği.
              Resmi başlığını, kanal adını/yazarını, süresini ve ne hakkında olduğunu bul.
              
              Bana şu JSON formatında yanıt ver:
              {
-                 \"title\": \"Video Başlığı\",
+                 \"title\": \"Video Başlığı (Scraped context varsa aynısını kullan)\",
                  \"description\": \"Videonun içeriğini NET anlatan açıklama (Max 120 karakter)\",
                  \"url\": \"Video Linki\",
                  \"icon\": \"Thumbnail URL (Max resolution)\",
@@ -99,12 +116,13 @@ class AppLogic {
              }";
         } elseif ($type === 'article') {
              $prompt = "$basePrompt
+             $scrapedContext
              Bu bir Blog yazısı, Makale veya Dokümantasyon sayfası.
              Başlığını, yazarını, tahmini okuma süresini ve özetini bul.
              
              Bana şu JSON formatında yanıt ver:
              {
-                 \"title\": \"Makale Başlığı\",
+                 \"title\": \"Makale Başlığı (Scraped context varsa aynısını kullan)\",
                  \"description\": \"Makalenin özetini NET anlatan açıklama (Max 120 karakter)\",
                  \"url\": \"Makale Linki\",
                  \"icon\": \"Site Faviconu veya Varsa Makale Kapak Resmi\",
@@ -183,6 +201,11 @@ class AppLogic {
         $content = trim($content);
         
         $json = json_decode($content, true);
+        
+        // Force use of Scraped Title if available for Video/Article
+        if (!empty($scrapedData['title']) && ($type === 'video' || $type === 'article')) {
+            $json['title'] = $scrapedData['title'];
+        }
         
         if (!$json) {
              // Fallback if JSON decode fails
@@ -272,6 +295,42 @@ class AppLogic {
         }
 
         return null;
+    }
+
+    private function fetchPageContent($url) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $html = curl_exec($ch);
+        curl_close($ch);
+
+        $data = ['title' => '', 'description' => '', 'body' => ''];
+        if (!$html) return $data;
+
+        $doc = new DOMDocument();
+        @$doc->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        $xpath = new DOMXPath($doc);
+
+        // Title
+        $nodes = $xpath->query('//title');
+        if($nodes->length > 0) $data['title'] = trim($nodes->item(0)->nodeValue);
+        
+        // Description
+        $nodes = $xpath->query('//meta[@name="description"]/@content');
+        if($nodes->length > 0) $data['description'] = trim($nodes->item(0)->nodeValue);
+        
+        // Body (naive)
+        $bodyNodes = $xpath->query('//body');
+        if($bodyNodes->length > 0) {
+            $text = $bodyNodes->item(0)->textContent;
+            $text = preg_replace('/\s+/', ' ', $text);
+            $data['body'] = mb_substr($text, 0, 1500);
+        }
+
+        return $data;
     }
 
     private function resolveUrl($baseUrl, $relativeUrl) {
