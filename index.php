@@ -57,6 +57,8 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    /*Custom Style */
+    .shadow-lg { padding: 0; }
     </style>
 </head>
 <body class="bg-dark-main text-gray-300 min-h-screen flex overflow-hidden" x-data="app()">
@@ -115,7 +117,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                             <template x-for="sub in cat.subcategories" :key="sub.id">
                                 <a href="#" @click.prevent="switchTab('dashboard', cat.name, sub.name)"
                                    :class="{'text-accent-blue font-medium': currentSubCategory === sub.name, 'text-gray-500 hover:text-gray-300': currentSubCategory !== sub.name}"
-                                   class="block px-2 py-1.5 rounded transition-colors text-xs flex items-center">
+                                   class="block px-2 py-0.5 rounded transition-colors text-m flex items-center">
                                     <span x-text="sub.name"></span>
                                 </a>
                             </template>
@@ -202,8 +204,8 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                             <!-- Left Column: Icon & Stats -->
                             <div class="w-32 bg-dark-main/30 flex flex-col items-center justify-center p-4 border-r border-dark-border flex-shrink-0 text-center">
                                 <!-- Big Circle Icon -->
-                                <div class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden mb-3 shadow-lg shadow-black/20 p-2 relative">
-                                     <img :src="tool.icon" @error="$el.src = 'https://img.icons8.com/color/48/000000/image.png'" class="w-full h-full object-contain">
+                                <div class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden mb-3 shadow-lg shadow-black/20 relative">
+                                     <img :src="tool.icon" @error="handleIconError($event, tool)" class="w-full h-full object-contain" :alt="tool.title">
                                      <!-- Video Play Overlay -->
                                      <div x-show="tool.type === 'video'" class="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
                                          <i class="fas fa-play text-white text-2xl drop-shadow-md"></i>
@@ -477,46 +479,56 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                      </div>
                      
                      <!-- Category Manager -->
-                     <div x-show="settingsTab === 'categories'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="bg-dark-card p-8 rounded-xl border border-dark-border">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-2xl font-bold text-white">Kategori Yönetimi</h2>
-                            <button @click="promptAddCategory" class="text-sm bg-dark-sidebar border border-dark-border hover:bg-dark-main px-3 py-1.5 rounded text-white transition">
-                                <i class="fas fa-plus mr-1"></i> Yeni Kategori
+                     <div x-show="settingsTab === 'categories'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                        <!-- Header -->
+                        <div class="flex justify-between items-center mb-5">
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Kategoriler</h2>
+                                <p class="text-xs text-gray-500 mt-0.5">İsme tıklayarak düzenleyin</p>
+                            </div>
+                            <button @click="promptAddCategory" class="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow">
+                                <i class="fas fa-plus text-xs"></i> Yeni Kategori
                             </button>
                         </div>
-                        
-                        <div class="space-y-4">
+
+                        <!-- Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <template x-for="(cat, index) in categories" :key="cat.id">
-                                <div class="bg-dark-main border border-dark-border rounded-lg p-4 group">
-                                    <!-- Main Cat Header -->
-                                    <div class="flex items-center justify-between mb-3">
-                                        <div class="flex items-center gap-3 flex-1">
-                                            <div class="flex flex-col gap-1">
-                                                <button @click="moveCategory(index, -1)" :disabled="index === 0" class="text-gray-600 hover:text-white disabled:opacity-20"><i class="fas fa-chevron-up"></i></button>
-                                                <button @click="moveCategory(index, 1)" :disabled="index === categories.length - 1" class="text-gray-600 hover:text-white disabled:opacity-20"><i class="fas fa-chevron-down"></i></button>
-                                            </div>
-                                            <input type="text" x-model="cat.name" @change="saveCategories" class="bg-transparent border-b border-transparent focus:border-blue-500 text-lg font-bold text-white focus:outline-none w-full">
+                                <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col gap-3 hover:border-gray-600 transition group">
+                                    <!-- Cat Header -->
+                                    <div class="flex items-center gap-2">
+                                        <!-- Sort arrows -->
+                                        <div class="flex flex-col gap-0.5">
+                                            <button @click="moveCategory(index, -1)" :disabled="index === 0" class="text-gray-700 hover:text-gray-300 disabled:opacity-20 leading-none"><i class="fas fa-chevron-up text-[10px]"></i></button>
+                                            <button @click="moveCategory(index, 1)" :disabled="index === categories.length - 1" class="text-gray-700 hover:text-gray-300 disabled:opacity-20 leading-none"><i class="fas fa-chevron-down text-[10px]"></i></button>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <button @click="promptAddSubCategory(cat)" class="text-xs bg-dark-card hover:bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-dark-border">
-                                                <i class="fas fa-plus mr-1"></i> Alt Kategori
-                                            </button>
-                                            <button @click="deleteCategory(index)" class="text-gray-600 hover:text-red-400 p-2"><i class="fas fa-trash-alt"></i></button>
-                                        </div>
+                                        <input type="text" x-model="cat.name" @change="saveCategories"
+                                               class="flex-1 bg-transparent text-white font-semibold text-sm border-b border-transparent hover:border-dark-border focus:border-blue-500 focus:outline-none transition py-0.5 px-1">
+                                        <button @click="deleteCategory(index)" class="text-gray-700 hover:text-red-400 transition p-1 opacity-0 group-hover:opacity-100"><i class="fas fa-trash text-xs"></i></button>
                                     </div>
-                                    
-                                    <!-- Sub Cats -->
-                                    <div class="pl-8 space-y-2 border-l-2 border-dark-border/30 ml-2">
+
+                                    <!-- Sub cats -->
+                                    <div class="flex flex-wrap gap-2">
                                         <template x-for="(sub, subIndex) in cat.subcategories" :key="sub.id">
-                                            <div class="flex items-center gap-2">
-                                                <input type="text" x-model="sub.name" @change="saveCategories" class="bg-transparent border-b border-transparent focus:border-blue-500 text-sm text-gray-400 focus:text-white focus:outline-none flex-1">
-                                                <button @click="deleteSubCategory(cat, subIndex)" class="text-gray-700 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+                                            <div class="flex items-center gap-1 bg-dark-main border border-dark-border rounded-lg px-2 py-1 group/sub">
+                                                <input type="text" x-model="sub.name" @change="saveCategories"
+                                                       class="bg-transparent text-xs text-gray-300 focus:text-white focus:outline-none w-auto min-w-0"
+                                                       :style="'width:' + (sub.name.length + 1) + 'ch'">
+                                                <button @click="deleteSubCategory(cat, subIndex)" class="text-gray-700 hover:text-red-400 transition opacity-0 group-hover/sub:opacity-100 ml-0.5"><i class="fas fa-times text-[10px]"></i></button>
                                             </div>
                                         </template>
-                                        <div x-show="cat.subcategories.length === 0" class="text-xs text-gray-600 italic">Alt kategori yok</div>
+                                        <button @click="promptAddSubCategory(cat)"
+                                                class="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-400 border border-dashed border-dark-border hover:border-blue-500 rounded-lg px-2 py-1 transition">
+                                            <i class="fas fa-plus text-[10px]"></i> Alt ekle
+                                        </button>
                                     </div>
                                 </div>
                             </template>
+
+                            <!-- Add placeholder -->
+                            <button @click="promptAddCategory" class="border border-dashed border-dark-border rounded-xl p-4 text-gray-600 hover:text-gray-400 hover:border-gray-500 transition flex items-center justify-center gap-2 text-sm">
+                                <i class="fas fa-plus"></i> Yeni kategori ekle
+                            </button>
                         </div>
                      </div>
                      
@@ -671,15 +683,19 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                     this.filteredTools = this.tools.filter(tool => {
                         let matchesCategory = true;
                         
-                        // Strict filtering
                         if (this.currentSubCategory) {
-                             matchesCategory = tool.subcategory === this.currentSubCategory;
+                            // Alt kategori seçili: sadece o alt kategoriyi göster
+                            matchesCategory = tool.subcategory === this.currentSubCategory;
                         } else if (this.currentCategory) {
-                             matchesCategory = tool.category === this.currentCategory;
+                            // Ana kategori seçili: hem ana kategorideki hem de alt kategorisindeki araçları göster
+                            matchesCategory = tool.category === this.currentCategory;
+                            // Alt kategorisi olan araçlar da category alanında ana kategoriyi taşır,
+                            // dolayısıyla bu kontrol zaten tüm alt kategori araçlarını kapsar.
                         }
 
                         const searchLower = this.searchQuery.toLowerCase();
-                        const matchesSearch = tool.title.toLowerCase().includes(searchLower) || 
+                        const matchesSearch = !searchLower ||
+                                            tool.title.toLowerCase().includes(searchLower) || 
                                             tool.description.toLowerCase().includes(searchLower) ||
                                             (tool.tags && tool.tags.some(t => t.toLowerCase().includes(searchLower)));
                         return matchesCategory && matchesSearch;
@@ -765,6 +781,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                     // Sync current categories state to backend
                     await fetch('api.php?action=update_categories', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(this.categories)
                     });
                 },
@@ -911,11 +928,23 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                 
                 resetForm() {
                     this.newTool = {
-                        title: '', description: '', url: '', category: 'Geliştirme', subcategory: '', tags: [], icon: '', rating: 4.8
+                        title: '', type: 'app', meta: {}, description: '', url: '', category: '', subcategory: '', tags: [], icon: '', rating: 4.8
                     };
                     this.aiQuery = '';
                     this.tempTags = '';
                     this.aiError = '';
+                },
+
+                handleIconError(event, tool) {
+                    // Tip bazlı SVG fallback ikonlar
+                    const fallbacks = {
+                        'video':   `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Crect width='24' height='24' rx='4' fill='%231a1a2e'/%3E%3Cpath d='M8 5v14l11-7z' fill='%23EF4444'/%3E%3C/svg%3E`,
+                        'article': `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%231a2a1a'/%3E%3Cpath d='M4 4h16v2H4zm0 4h16v2H4zm0 4h10v2H4zm0 4h12v2H4z' fill='%2310B981'/%3E%3C/svg%3E`,
+                        'app':     `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%231a1a2e'/%3E%3Crect x='3' y='3' width='8' height='8' rx='1' fill='%233B82F6'/%3E%3Crect x='13' y='3' width='8' height='8' rx='1' fill='%238B5CF6'/%3E%3Crect x='3' y='13' width='8' height='8' rx='1' fill='%2306B6D4'/%3E%3Crect x='13' y='13' width='8' height='8' rx='1' fill='%2310B981'/%3E%3C/svg%3E`
+                    };
+                    const type = tool.type || 'app';
+                    event.target.src = fallbacks[type] || fallbacks['app'];
+                    event.target.onerror = null; // Sonsuz döngüyü engelle
                 }
             }
         }
