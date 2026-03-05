@@ -101,6 +101,22 @@ try {
             echo json_encode($app->performUpdate());
             break;
 
+        case 'export_data':
+            $exportData = $app->exportData();
+            // JSON dosyası olarak indir
+            header('Content-Disposition: attachment; filename="araclarim_backup_' . date('Y-m-d') . '.json"');
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode($exportData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            exit;
+
+        case 'import_data':
+            if ($method !== 'POST') throw new Exception("Method not allowed");
+            $mode = $input['mode'] ?? 'merge';
+            $importPayload = $input['data'] ?? null;
+            if (!$importPayload) throw new Exception("Import verisi eksik.");
+            echo json_encode($app->importData($importPayload, $mode));
+            break;
+
         default:
             throw new Exception("Invalid action");
     }

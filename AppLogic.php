@@ -503,6 +503,70 @@ class AppLogic {
         return true;
     }
 
+    // --- Import / Export ---
+
+    public function exportData() {
+        $tools      = $this->loadData($this->toolsFile);
+        $categories = $this->getCategories();
+        $settings   = $this->getSettings();
+
+        // API anahtarını dışa aktarmaya dahil etme (güvenlik)
+        unset($settings['openai_api_key']);
+
+        return [
+            'version'    => '1.0',
+            'exported_at' => date('c'),
+            'tools'      => $tools,
+            'categories' => $categories,
+            'settings'   => $settings,
+        ];
+    }
+
+    public function importData($data, $mode = 'merge') {
+        // Doğrulama
+        if (!isset($data['tools']) || !is_array($data['tools'])) {
+            throw new Exception('Geçersiz import dosyası: tools alanı eksik.');
+        }
+
+        if ($mode === 'replace') {
+            // Tamamen değiştir
+            $this->saveData($this->toolsFile, $data['tools']);
+            if (isset($data['categories']) && is_array($data['categories'])) {
+                $this->saveCategories($data['categories']);
+            }
+        } else {
+            // Birleştir (ID çakışmalarını önle)
+            $existingTools = $this->loadData($this->toolsFile);
+            $existingIds   = array_column($existingTools, 'id');
+
+            $newTools = [];
+            foreach ($data['tools'] as $tool) {
+                if (!in_array($tool['id'], $existingIds)) {
+                    $newTools[] = $tool;
+                }
+            }
+            $merged = array_merge($newTools, $existingTools);
+            $this->saveData($this->toolsFile, $merged);
+
+            // Kategorileri birleştir
+            if (isset($data['categories']) && is_array($data['categories'])) {
+                $existingCats   = $this->getCategories();
+                $existingCatIds = array_column($existingCats, 'id');
+                foreach ($data['categories'] as $cat) {
+                    if (!in_array($cat['id'], $existingCatIds)) {
+                        $existingCats[] = $cat;
+                    }
+                }
+                $this->saveCategories($existingCats);
+            }
+        }
+
+        return [
+            'status'  => 'success',
+            'imported' => count($data['tools']),
+        ];
+    }
+
     // --- System & Update Logic ---
 
     public function getSystemInfo() {

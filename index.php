@@ -179,7 +179,22 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
             
             <!-- Dashboard (Cards) -->
             <div x-show="activeTab === 'dashboard'" x-transition.opacity.duration.300ms>
-                
+
+                <!-- Type Filter Bar -->
+                <div class="flex flex-wrap items-center gap-2 mb-6">
+                    <template x-for="tf in typeFilters" :key="tf.value">
+                        <button @click="setTypeFilter(tf.value)"
+                            :class="activeTypeFilter === tf.value
+                                ? 'text-white shadow-inner ' + tf.active
+                                : 'bg-dark-card border-dark-border text-gray-400 hover:text-gray-200'"
+                            class="flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm font-medium transition-all">
+                            <i :class="tf.icon" class="text-xs"></i>
+                            <span x-text="tf.label"></span>
+                            <span class="text-[10px] opacity-70 font-normal" x-text="'(' + countByType(tf.value) + ')'"></span>
+                        </button>
+                    </template>
+                </div>
+
                 <!-- Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <template x-for="tool in filteredTools" :key="tool.id">
@@ -227,7 +242,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                             <!-- Right Column: Info -->
                             <div class="flex-1 p-5 flex flex-col">
                                 <a :href="tool.url" target="_blank" @click="incrementClick(tool.id)" class="hover:text-accent-blue transition-colors">
-                                    <h3 class="font-bold text-white text-lg uppercase tracking-wide leading-tight mb-1" x-text="tool.title"></h3>
+                                    <h3 class="font-bold text-white text-lg capitalize tracking-wide leading-tight mb-1" x-text="tool.title"></h3>
                                 </a>
                                 <p class="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2" x-text="tool.category"></p>
                                 
@@ -421,6 +436,7 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                      <div class="flex space-x-1 bg-dark-card p-1 rounded-xl mb-6 border border-dark-border inline-flex w-full md:w-auto">
                          <button @click="settingsTab = 'general'" :class="{'bg-dark-sidebar text-white shadow': settingsTab === 'general', 'text-gray-400 hover:text-gray-200': settingsTab !== 'general'}" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-medium transition-all">Genel</button>
                          <button @click="settingsTab = 'categories'" :class="{'bg-dark-sidebar text-white shadow': settingsTab === 'categories', 'text-gray-400 hover:text-gray-200': settingsTab !== 'categories'}" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-medium transition-all">Kategoriler</button>
+                         <button @click="settingsTab = 'data'" :class="{'bg-dark-sidebar text-white shadow': settingsTab === 'data', 'text-gray-400 hover:text-gray-200': settingsTab !== 'data'}" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-medium transition-all">Veri</button>
                          <button @click="settingsTab = 'updates'" :class="{'bg-dark-sidebar text-white shadow': settingsTab === 'updates', 'text-gray-400 hover:text-gray-200': settingsTab !== 'updates'}" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-medium transition-all">Güncelleme</button>
                      </div>
 
@@ -532,6 +548,67 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                         </div>
                      </div>
                      
+                     <!-- Data Import/Export -->
+                     <div x-show="settingsTab === 'data'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="bg-dark-card p-8 rounded-xl border border-dark-border space-y-6">
+                         <div>
+                             <h2 class="text-xl font-bold text-white">Veri Yönetimi</h2>
+                             <p class="text-sm text-gray-500 mt-1">Tüm araç ve kategori verilerinizi yedekleyin veya geri yükleyin.</p>
+                         </div>
+
+                         <!-- Export -->
+                         <div class="bg-dark-main border border-dark-border rounded-xl p-5 flex items-center justify-between gap-4">
+                             <div>
+                                 <p class="font-semibold text-white text-sm"><i class="fas fa-file-export mr-2 text-blue-400"></i>Dışa Aktar</p>
+                                 <p class="text-xs text-gray-500 mt-1">Tüm araçları ve kategorileri JSON dosyası olarak indir. API anahtarı dahil edilmez.</p>
+                             </div>
+                             <a href="api.php?action=export_data" download
+                                class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm px-5 py-2.5 rounded-lg transition font-medium flex items-center gap-2 shadow">
+                                 <i class="fas fa-download"></i> İndir
+                             </a>
+                         </div>
+
+                         <!-- Import -->
+                         <div class="bg-dark-main border border-dark-border rounded-xl p-5 space-y-4" x-data="{ importMode: 'merge', importStatus: '', importError: '', dragging: false }">
+                             <div>
+                                 <p class="font-semibold text-white text-sm"><i class="fas fa-file-import mr-2 text-emerald-400"></i>İçe Aktar</p>
+                                 <p class="text-xs text-gray-500 mt-1">Daha önce dışa aktarılan bir JSON dosyasını yükleyin.</p>
+                             </div>
+
+                             <!-- Mode Selection -->
+                             <div class="flex gap-3">
+                                 <label class="flex items-center gap-2 cursor-pointer">
+                                     <input type="radio" x-model="importMode" value="merge" class="accent-blue-500">
+                                     <span class="text-sm text-gray-300">Birleştir <span class="text-xs text-gray-600">(mevcut verilerle)</span></span>
+                                 </label>
+                                 <label class="flex items-center gap-2 cursor-pointer">
+                                     <input type="radio" x-model="importMode" value="replace" class="accent-red-500">
+                                     <span class="text-sm text-gray-300">Değiştir <span class="text-xs text-red-600">(mevcut verileri siler!)</span></span>
+                                 </label>
+                             </div>
+
+                             <!-- Drop Zone -->
+                             <label
+                                 class="block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
+                                 :class="dragging ? 'border-blue-500 bg-blue-900/20' : 'border-dark-border hover:border-gray-500'"
+                                 @dragover.prevent="dragging = true"
+                                 @dragleave="dragging = false"
+                                 @drop.prevent="dragging = false; handleImportFile($event.dataTransfer.files[0], importMode, r => { importStatus = r.ok; importError = r.err; if(r.ok) fetchTools(); fetchCategories(); })">
+                                 <i class="fas fa-upload text-2xl text-gray-600 mb-2 block"></i>
+                                 <span class="text-sm text-gray-400">JSON dosyasını sürükle-bırak ya da seç</span>
+                                 <input type="file" accept=".json" class="hidden"
+                                     @change="handleImportFile($event.target.files[0], importMode, r => { importStatus = r.ok; importError = r.err; if(r.ok) { fetchTools(); fetchCategories(); } })">
+                             </label>
+
+                             <!-- Status -->
+                             <div x-show="importStatus" x-transition class="text-sm text-emerald-400 bg-emerald-900/20 border border-emerald-900/50 rounded-lg px-4 py-3 flex items-center gap-2">
+                                 <i class="fas fa-check-circle"></i> <span x-text="importStatus"></span>
+                             </div>
+                             <div x-show="importError" x-transition class="text-sm text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg px-4 py-3 flex items-center gap-2">
+                                 <i class="fas fa-times-circle"></i> <span x-text="importError"></span>
+                             </div>
+                         </div>
+                     </div>
+
                      <!-- Update System -->
                      <div x-show="settingsTab === 'updates'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="bg-dark-card p-8 rounded-xl border border-dark-border">
                          <h2 class="text-2xl font-bold text-white mb-6">Güncelleme Merkezi</h2>
@@ -597,7 +674,14 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                 currentSubCategory: '',
                 openCategory: '', // For accordion state
                 searchQuery: '',
-                
+                activeTypeFilter: 'all', // Tip filtresi
+                typeFilters: [
+                    { value: 'all',     label: 'Tümü',     icon: 'fas fa-th-large',  active: 'bg-dark-border border-gray-500' },
+                    { value: 'app',     label: 'Uygulama',  icon: 'fas fa-cube',      active: 'bg-blue-700 border-blue-500' },
+                    { value: 'video',   label: 'Video',     icon: 'fab fa-youtube',   active: 'bg-red-700 border-red-500' },
+                    { value: 'article', label: 'Makale',    icon: 'fas fa-file-alt',  active: 'bg-emerald-700 border-emerald-500' },
+                ],
+
                 // Add Tool Form
                 aiQuery: '',
                 loadingAI: false,
@@ -684,22 +768,37 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                         let matchesCategory = true;
                         
                         if (this.currentSubCategory) {
-                            // Alt kategori seçili: sadece o alt kategoriyi göster
                             matchesCategory = tool.subcategory === this.currentSubCategory;
                         } else if (this.currentCategory) {
-                            // Ana kategori seçili: hem ana kategorideki hem de alt kategorisindeki araçları göster
                             matchesCategory = tool.category === this.currentCategory;
-                            // Alt kategorisi olan araçlar da category alanında ana kategoriyi taşır,
-                            // dolayısıyla bu kontrol zaten tüm alt kategori araçlarını kapsar.
                         }
+
+                        // Tip filtresi
+                        const matchesType = this.activeTypeFilter === 'all' || (tool.type || 'app') === this.activeTypeFilter;
 
                         const searchLower = this.searchQuery.toLowerCase();
                         const matchesSearch = !searchLower ||
                                             tool.title.toLowerCase().includes(searchLower) || 
                                             tool.description.toLowerCase().includes(searchLower) ||
                                             (tool.tags && tool.tags.some(t => t.toLowerCase().includes(searchLower)));
-                        return matchesCategory && matchesSearch;
+                        return matchesCategory && matchesType && matchesSearch;
                     });
+                },
+
+                setTypeFilter(type) {
+                    this.activeTypeFilter = type;
+                    this.filterTools();
+                },
+
+                countByType(type) {
+                    // Mevcut kategori filtresini de dikkate al
+                    return this.tools.filter(tool => {
+                        let mc = true;
+                        if (this.currentSubCategory) mc = tool.subcategory === this.currentSubCategory;
+                        else if (this.currentCategory) mc = tool.category === this.currentCategory;
+                        if (type === 'all') return mc;
+                        return mc && (tool.type || 'app') === type;
+                    }).length;
                 },
 
                 // ... keep analyzeUrl ...
@@ -945,6 +1044,35 @@ $appIcon = $settings['app_icon'] ?? 'https://img.icons8.com/dusk/64/000000/conso
                     const type = tool.type || 'app';
                     event.target.src = fallbacks[type] || fallbacks['app'];
                     event.target.onerror = null; // Sonsuz döngüyü engelle
+                },
+
+                handleImportFile(file, mode, callback) {
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const parsed = JSON.parse(e.target.result);
+                            // Doğrulama
+                            if (!parsed.tools || !Array.isArray(parsed.tools)) {
+                                callback({ ok: '', err: 'Geçersiz dosya: tools alanı bulunamadı.' });
+                                return;
+                            }
+                            if (mode === 'replace' && !confirm(`DİKKAT: Mevcut ${this.tools.length} aracın tamamı silinecek ve ${parsed.tools.length} yeni araç yüklenecek. Devam etmek istiyor musunuz?`)) {
+                                return;
+                            }
+                            const res = await fetch('api.php?action=import_data', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ data: parsed, mode })
+                            });
+                            const result = await res.json();
+                            if (result.error) throw new Error(result.error);
+                            callback({ ok: `${result.imported} araç başarıyla içe aktarıldı!`, err: '' });
+                        } catch (err) {
+                            callback({ ok: '', err: 'Hata: ' + err.message });
+                        }
+                    };
+                    reader.readAsText(file);
                 }
             }
         }
