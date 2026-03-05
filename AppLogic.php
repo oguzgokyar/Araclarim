@@ -276,26 +276,92 @@ class AppLogic {
         @$doc->loadHTML($html);
         $xpath = new DOMXPath($doc);
 
-        // 1. Check og:image
+        // ---- 1. Apple Touch Icon (en yüksek kalite, 180x180) ----
+        $relTypes = [
+            'apple-touch-icon',
+            'apple-touch-icon-precomposed',
+            'fluid-icon',
+            'mask-icon',
+            'icon',
+            'shortcut icon',
+        ];
+
+        foreach ($relTypes as $rel) {
+            // sizes="180x180" olanı önce dene (apple için)
+            if (in_array($rel, ['apple-touch-icon', 'apple-touch-icon-precomposed'])) {
+                $nodes = $xpath->query("//link[translate(@rel,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='$rel' and @sizes='180x180']/@href");
+                if ($nodes->length > 0) {
+                    return $this->resolveUrl($url, $nodes->item(0)->nodeValue);
+                }
+            }
+
+            $nodes = $xpath->query("//link[translate(@rel,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='$rel']/@href");
+            if ($nodes->length > 0) {
+                return $this->resolveUrl($url, $nodes->item(0)->nodeValue);
+            }
+        }
+
+        // ---- 2. Web App Manifest ----
+        $manifestNodes = $xpath->query("//link[translate(@rel,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='manifest']/@href");
+        if ($manifestNodes->length > 0) {
+            $manifestUrl = $this->resolveUrl($url, $manifestNodes->item(0)->nodeValue);
+            $manifestIcon = $this->fetchManifestIcon($manifestUrl, $url);
+            if ($manifestIcon) return $manifestIcon;
+        }
+
+        // ---- 3. OG / Twitter image (büyük ama yedek) ----
         $ogImage = $xpath->query('//meta[@property="og:image"]/@content');
         if ($ogImage->length > 0) {
             return $this->resolveUrl($url, $ogImage->item(0)->nodeValue);
         }
 
-        // 2. Check twitter:image
         $twitterImage = $xpath->query('//meta[@name="twitter:image"]/@content');
         if ($twitterImage->length > 0) {
             return $this->resolveUrl($url, $twitterImage->item(0)->nodeValue);
         }
 
-        // 3. Check link rel icon
-        $icons = $xpath->query('//link[@rel="icon" or @rel="shortcut icon" or @rel="apple-touch-icon"]/@href');
-        if ($icons->length > 0) {
-            return $this->resolveUrl($url, $icons->item(0)->nodeValue);
-        }
-
         return null;
     }
+
+    private function fetchManifestIcon($manifestUrl, $baseUrl) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $manifestUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+        $json = curl_exec($ch);
+        curl_close($ch);
+
+        if (!$json) return null;
+
+        $manifest = json_decode($json, true);
+        if (!isset($manifest['icons']) || !is_array($manifest['icons'])) return null;
+
+        // En büyük ikonu seç (512 > 192 > diğerleri)
+        $best = null;
+        $bestSize = 0;
+        foreach ($manifest['icons'] as $icon) {
+            if (empty($icon['src'])) continue;
+            // "any" veya "maskable" olmayan ikonları tercih et
+            $purpose = $icon['purpose'] ?? 'any';
+            if (strpos($purpose, 'maskable') !== false && strpos($purpose, 'any') === false) continue;
+
+            $size = 0;
+            if (!empty($icon['sizes'])) {
+                // "192x192" → 192
+                preg_match('/(\d+)/', $icon['sizes'], $m);
+                $size = isset($m[1]) ? (int)$m[1] : 0;
+            }
+            if ($size > $bestSize) {
+                $bestSize = $size;
+                $best = $icon['src'];
+            }
+        }
+
+        return $best ? $this->resolveUrl($baseUrl, $best) : null;
+    }
+
 
     private function fetchPageContent($url) {
         $ch = curl_init();
